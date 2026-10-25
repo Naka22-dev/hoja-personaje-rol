@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Hoja de personaje</title>
+<meta name="description" content="Hoja de personaje para el móvil">
+<meta name="theme-color" content="#7a1c1c">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="iconos/icono.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="iconos/icono-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Hoja PJ">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="stylesheet" href="estilos.css">
+</head>
+<body>
+
+<!-- ============ LISTA DE PERSONAJES ============ -->
+<section id="vista-lista" class="vista">
+  <header class="barra">
+    <h1>Mis personajes</h1>
+  </header>
+  <main class="contenido">
+    <div id="personajes"></div>
+    <div class="botonera">
+      <button class="primario" data-accion="nuevo">＋ Nuevo personaje</button>
+      <button data-accion="importar">Importar archivo</button>
+      <button data-accion="exportarTodos">Copia de seguridad</button>
+      <button data-accion="visorDM">🛡️ Visor del DM</button>
+    </div>
+    <input type="file" id="archivo-importar" accept=".json,application/json" hidden>
+    <p class="pie">Las hojas se guardan solo en este dispositivo. Haz una copia de seguridad de vez en cuando. · v<span id="version"></span></p>
+    <p class="pie legal">© 2026 naka22-dev. Uso personal. Todos los derechos reservados.<br>
+      Herramienta no oficial, sin relación con Wizards of the Coast ni respaldada por ella.</p>
+  </main>
+</section>
+
+<!-- ============ VISOR DEL DM ============ -->
+<section id="vista-dm" class="vista" hidden>
+  <header class="barra">
+    <button class="icono" data-accion="volver" aria-label="Volver">‹</button>
+    <div class="titulo">
+      <h1 id="dm-titulo">Visor del DM</h1>
+      <p id="dm-subtitulo"></p>
+    </div>
+    <span class="hueco-icono"></span>
+  </header>
+  <main class="contenido" id="dm-contenido"></main>
+</section>
+
+<!-- ============ HOJA DE PERSONAJE ============ -->
+<section id="vista-hoja" class="vista" hidden>
+  <header class="barra">
+    <button class="icono" data-accion="volver" aria-label="Volver a la lista">‹</button>
+    <div class="titulo">
+      <h1 data-calc="titulo"></h1>
+      <p data-calc="subtitulo"></p>
+    </div>
+    <button class="icono solo-edicion" data-accion="exportar" aria-label="Exportar este personaje" title="Exportar">⇩</button>
+    <span class="hueco-icono solo-lectura"></span>
+  </header>
+  <p class="aviso-lectura solo-lectura">👁️ Solo lectura · se actualiza en directo · <span id="lectura-hora"></span></p>
+
+  <main class="contenido" id="hoja">
+
+    <!-- ===== FICHA ===== -->
+    <div class="panel" data-panel="ficha" hidden>
+      <div class="caja">
+        <label class="campo ancho">Nombre del personaje <input data-campo="nombre" autocomplete="off"></label>
+      </div>
+      <div class="caja">
+        <h2>Clase y nivel</h2>
+        <div id="ficha-clases"></div>
+        <p class="nivel-total" id="nivel-total"></p>
+        <button class="primario ancho solo-edicion" data-accion="subirNivel" id="btn-subir-nivel">⬆ Subir de nivel</button>
+        <div class="px">
+          <div class="px-cabecera"><span class="etq">Experiencia</span><span id="px-texto"></span></div>
+          <div class="pg-barra px-barra" id="px-barra"><span></span></div>
+          <button class="ancho dorado solo-edicion" data-accion="subirNivel" id="px-subir" hidden>✨ ¡Puedes subir de nivel!</button>
+          <div class="fila-px">
+            <label class="campo">PX totales <input data-campo="px" inputmode="numeric" autocomplete="off" placeholder="Vacío si no usáis PX"></label>
+            <div class="sumar-px solo-edicion">
+              <input id="px-suma" type="number" inputmode="numeric" min="0" placeholder="0" aria-label="PX ganados">
+              <button data-accion="sumarPX">+ PX</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="caja">
+        <h2>Especie y trasfondo</h2>
+        <div id="ficha-origen" class="fila2"></div>
+      </div>
+      <div class="caja solo-edicion">
+        <h2>Partida</h2>
+        <div id="partida-fuera">
+          <p class="ayuda">Únete a la partida de tu DM para que pueda ver esta hoja en directo. El DM solo la ve: nadie más puede cambiarla.</p>
+          <div class="fila-codigo">
+            <input id="codigo-unirse" placeholder="Código, p. ej. ABC-123" autocomplete="off" autocapitalize="characters" spellcheck="false">
+            <button class="primario" data-accion="unirse">Unirse</button>
+          </div>
+        </div>
+        <div id="partida-dentro" hidden>
+          <p class="partida-info">En la partida <b id="partida-nombre"></b> · <span id="partida-codigo"></span></p>
+          <p class="ayuda" id="partida-estado"></p>
+          <button class="peligro ancho" data-accion="salirPartida">Salir de la partida</button>
+        </div>
+      </div>
+      <div class="caja">
+        <h2>Aspecto</h2>
+        <div class="fila3">
+          <label class="campo">Altura <input data-campo="altura" autocomplete="off" placeholder="1,50 m"></label>
+          <label class="campo">Peso <input data-campo="peso" autocomplete="off" placeholder="45 kg"></label>
+          <label class="campo">Edad <input data-campo="edad" autocomplete="off" placeholder="120 años"></label>
+        </div>
+        <div class="retrato-zona">
+          <div class="retrato" id="retrato">
+            <img id="retrato-img" alt="Imagen del personaje" draggable="false" hidden>
+            <span class="retrato-vacio" id="retrato-vacio">Sin imagen</span>
+          </div>
+          <div class="retrato-botones solo-edicion">
+            <button data-accion="subirImagen" id="btn-subir">Subir imagen</button>
+            <button data-accion="encuadrar" id="btn-encuadrar" hidden>Encuadrar</button>
+            <button class="peligro" data-accion="quitarImagen" id="btn-quitar" hidden>Quitar imagen</button>
+          </div>
+          <div class="retrato-edicion" id="retrato-edicion" hidden>
+            <p class="ayuda">Arrastra la imagen para moverla. Acércala o aléjala con la barra o pellizcando con dos dedos.</p>
+            <label class="campo ancho">Zoom <input type="range" id="retrato-zoom" min="1" max="4" step="0.01"></label>
+            <div class="botonera dos">
+              <button data-accion="centrarImagen">Centrar</button>
+              <button class="primario" data-accion="encuadrar">Listo</button>
+            </div>
+          </div>
+        </div>
+        <input type="file" id="archivo-imagen" accept="image/*" hidden>
+        <label class="campo ancho">Descripción <textarea data-campo="aspecto" rows="3" placeholder="Opcional si has subido una imagen"></textarea></label>
+      </div>
+      <div class="caja">
+        <h2>Historia y personalidad</h2>
+        <textarea data-campo="historia" rows="5"></textarea>
+        <label class="campo ancho">Alineamiento <input data-campo="alineamiento" autocomplete="off"></label>
+      </div>
+      <div class="caja">
+        <h2>Idiomas</h2>
+        <textarea data-campo="idiomas" rows="2"></textarea>
+      </div>
+      <button class="peligro ancho solo-edicion" data-accion="borrarActual">Borrar este personaje</button>
+    </div>
+
+    <!-- ===== COMBATE ===== -->
+    <div class="panel" data-panel="combate" hidden>
+      <div class="caja pg">
+        <div class="pg-cabecera">
+          <h2>Puntos de golpe</h2>
+          <button class="chip" data-accion="inspiracion" data-estado="inspiracion">Inspiración heroica</button>
+        </div>
+        <div class="pg-numeros">
+          <label class="pg-actual">Actuales <input data-campo="pg.act" data-tipo="num" type="number" inputmode="numeric"></label>
+          <span class="barra-sep">/</span>
+          <label class="pg-max">Máx. <input data-campo="pg.max" data-tipo="num" type="number" inputmode="numeric"></label>
+          <label class="pg-temp">Temp. <input data-campo="pg.temp" data-tipo="num" type="number" inputmode="numeric"></label>
+        </div>
+        <div class="pg-barra"><span data-estado="pgBarra"></span></div>
+        <div class="pg-acciones solo-edicion">
+          <button class="peligro" data-accion="dano">− Daño</button>
+          <input id="cantidad" type="number" inputmode="numeric" min="0" placeholder="0" aria-label="Cantidad">
+          <button class="exito" data-accion="curar">+ Curar</button>
+        </div>
+      </div>
+
+      <div class="cuadricula">
+        <div class="dato">
+          <span class="etq">Clase de armadura</span>
+          <input class="grande" data-campo="ca" inputmode="numeric" autocomplete="off">
+          <label class="mini"><input type="checkbox" data-campo="escudo"> Escudo</label>
+        </div>
+        <div class="dato">
+          <span class="etq">Iniciativa</span>
+          <span class="grande" data-calc="iniciativa"></span>
+          <label class="mini">extra <input class="diminuto" data-campo="iniciativaExtra" data-tipo="num" type="number" inputmode="numeric"></label>
+        </div>
+        <div class="dato">
+          <span class="etq">Velocidad</span>
+          <input class="grande" data-campo="velocidad" autocomplete="off">
+        </div>
+        <div class="dato">
+          <span class="etq">Tamaño</span>
+          <input class="medio" data-campo="tamano" autocomplete="off">
+        </div>
+        <div class="dato">
+          <span class="etq">Percepción pasiva</span>
+          <span class="grande" data-calc="pasiva"></span>
+        </div>
+        <div class="dato">
+          <span class="etq">Bonif. por competencia</span>
+          <span class="grande" data-calc="competencia"></span>
+        </div>
+      </div>
+
+      <div class="caja">
+        <h2>Dados de golpe</h2>
+        <div id="lista-dg"></div>
+      </div>
+
+      <div class="caja">
+        <h2>Salvaciones contra muerte</h2>
+        <div class="muerte">
+          <span>Éxitos</span>
+          <span class="rombos" data-muerte="exitos"></span>
+          <span>Fallos</span>
+          <span class="rombos fallos" data-muerte="fallos"></span>
+        </div>
+      </div>
+
+      <div class="botonera dos solo-edicion">
+        <button data-accion="corto">Descanso corto</button>
+        <button data-accion="largo">Descanso largo</button>
+      </div>
+
+      <div class="caja">
+        <h2>Armas y trucos de daño</h2>
+        <div id="lista-armas" class="lista"></div>
+        <button class="ancho solo-edicion" data-accion="nuevaArma">＋ Añadir arma o truco</button>
+      </div>
+    </div>
+
+    <!-- ===== CARACTERÍSTICAS ===== -->
+    <div class="panel" data-panel="atributos" hidden>
+      <p class="ayuda solo-edicion">Toca el círculo para marcar competencia (●) o pericia (◉).</p>
+      <div id="lista-caracteristicas"></div>
+    </div>
+
+    <!-- ===== RASGOS ===== -->
+    <div class="panel" data-panel="rasgos" hidden>
+      <div class="caja">
+        <h2>Rasgos de clase</h2>
+        <textarea data-campo="rasgosClase" rows="8"></textarea>
+      </div>
+      <div class="caja">
+        <h2>Atributos de especie</h2>
+        <textarea data-campo="atributosEspecie" rows="5"></textarea>
+      </div>
+      <div class="caja">
+        <h2>Dotes</h2>
+        <div id="lista-dotes"></div>
+        <button class="ancho solo-edicion" data-accion="nuevaDote">＋ Añadir dote extra</button>
+        <label class="campo ancho notas-dotes">Notas <textarea data-campo="dotes" rows="2"></textarea></label>
+      </div>
+      <div class="caja">
+        <h2>Entrenamiento y competencias con equipo</h2>
+        <div class="etq">Entrenamiento con armadura</div>
+        <div class="casillas">
+          <label><input type="checkbox" data-campo="armaduras.ligera"> Ligeras</label>
+          <label><input type="checkbox" data-campo="armaduras.media"> Medias</label>
+          <label><input type="checkbox" data-campo="armaduras.pesada"> Pesadas</label>
+          <label><input type="checkbox" data-campo="armaduras.escudo"> Escudos</label>
+        </div>
+        <label class="campo ancho">Armas <textarea data-campo="compArmas" rows="2"></textarea></label>
+        <label class="campo ancho">Herramientas <textarea data-campo="compHerramientas" rows="2"></textarea></label>
+      </div>
+    </div>
+
+    <!-- ===== MAGIA ===== -->
+    <div class="panel" data-panel="magia" hidden>
+      <div class="caja" id="magia-clases" hidden>
+        <h2>Aptitud mágica</h2>
+        <div id="lista-aptitudes"></div>
+      </div>
+      <div class="caja" id="magia-manual">
+        <label class="campo ancho">Aptitud mágica
+          <select data-campo="magia.aptitud">
+            <option value="">— Ninguna —</option>
+            <option value="int">Inteligencia</option>
+            <option value="sab">Sabiduría</option>
+            <option value="car">Carisma</option>
+          </select>
+        </label>
+        <div class="cuadricula tres">
+          <div class="dato"><span class="etq">Modificador</span><span class="grande" data-calc="modMagia"></span></div>
+          <div class="dato"><span class="etq">CD de salvación</span><span class="grande" data-calc="cdMagia"></span></div>
+          <div class="dato"><span class="etq">Bonif. de ataque</span><span class="grande" data-calc="ataqueMagia"></span></div>
+        </div>
+      </div>
+      <div class="caja">
+        <h2>Espacios de conjuro</h2>
+        <p class="ayuda solo-edicion" id="ayuda-espacios"></p>
+        <div id="lista-espacios"></div>
+        <label class="casilla-sola solo-edicion"><input type="checkbox" data-campo="magia.manual"> Ajustar los totales a mano</label>
+      </div>
+      <div class="caja">
+        <h2>Trucos y conjuros preparados</h2>
+        <div id="lista-conjuros" class="lista"></div>
+        <div class="botonera dos solo-edicion">
+          <button data-accion="nuevoConjuro">＋ Añadir conjuro</button>
+          <button data-accion="ordenarConjuros">Ordenar por nivel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== CARTAS ===== -->
+    <div class="panel" data-panel="cartas" hidden>
+      <div id="cartas-contenido"></div>
+      <input type="file" id="archivo-mazo" accept=".csv,text/csv,text/plain" hidden>
+    </div>
+
+    <!-- ===== EQUIPO ===== -->
+    <div class="panel" data-panel="equipo" hidden>
+      <div class="caja">
+        <h2>Monedas</h2>
+        <div class="monedas">
+          <label>PC <input data-campo="monedas.pc" data-tipo="num" type="number" inputmode="numeric"></label>
+          <label>PP <input data-campo="monedas.pp" data-tipo="num" type="number" inputmode="numeric"></label>
+          <label>PE <input data-campo="monedas.pe" data-tipo="num" type="number" inputmode="numeric"></label>
+          <label>PO <input data-campo="monedas.po" data-tipo="num" type="number" inputmode="numeric"></label>
+          <label>PPT <input data-campo="monedas.ppt" data-tipo="num" type="number" inputmode="numeric"></label>
+        </div>
+      </div>
+      <div class="caja">
+        <h2>Equipo</h2>
+        <textarea data-campo="equipo" rows="10"></textarea>
+      </div>
+      <div class="caja">
+        <h2>Sintonización con objetos mágicos</h2>
+        <div class="sintonia"><input type="checkbox" data-campo="sintonia.0.activo" aria-label="Sintonizado"><input data-campo="sintonia.0.nombre" autocomplete="off"></div>
+        <div class="sintonia"><input type="checkbox" data-campo="sintonia.1.activo" aria-label="Sintonizado"><input data-campo="sintonia.1.nombre" autocomplete="off"></div>
+        <div class="sintonia"><input type="checkbox" data-campo="sintonia.2.activo" aria-label="Sintonizado"><input data-campo="sintonia.2.nombre" autocomplete="off"></div>
+      </div>
+    </div>
+  </main>
+
+  <nav class="pestanas">
+    <button data-accion="pestana" data-p="ficha"><span>📜</span>Ficha</button>
+    <button data-accion="pestana" data-p="combate"><span>⚔️</span>Combate</button>
+    <button data-accion="pestana" data-p="atributos"><span>🎲</span>Atributos</button>
+    <button data-accion="pestana" data-p="rasgos"><span>⭐</span>Rasgos</button>
+    <button data-accion="pestana" data-p="magia"><span>✨</span>Magia</button>
+    <button data-accion="pestana" data-p="cartas"><span>🃏</span>Cartas</button>
+    <button data-accion="pestana" data-p="equipo"><span>🎒</span>Equipo</button>
+  </nav>
+</section>
+
+<!-- ============ DESCANSO CORTO ============ -->
+<dialog id="dlg-corto">
+  <form method="dialog">
+    <h2>Descanso corto</h2>
+    <p>Dados de golpe disponibles (Constitución <span data-calc="modCon"></span>):</p>
+    <div id="corto-dados"></div>
+    <label class="campo ancho">PG que recuperas (tu tirada + Constitución por dado) <input id="corto-pg" type="number" inputmode="numeric" min="0" placeholder="0"></label>
+    <div class="botonera dos">
+      <button value="cancelar">Cancelar</button>
+      <button value="ok" class="primario">Descansar</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- ============ SUBIR DE NIVEL ============ -->
+<dialog id="dlg-nivel">
+  <form method="dialog">
+    <h2>Subir de nivel</h2>
+    <p class="ayuda" id="nivel-actual"></p>
+    <div class="etq">¿En qué clase subes?</div>
+    <div id="nivel-opciones" class="opciones"></div>
+    <div id="nivel-nueva" hidden>
+      <label class="campo ancho">Clase nueva
+        <select id="nivel-clase"></select>
+      </label>
+      <div class="fila2" id="nivel-otra" hidden>
+        <label class="campo">Nombre <input id="nivel-otra-nombre" autocomplete="off"></label>
+        <label class="campo">Dado de golpe <select id="nivel-otra-dado"></select></label>
+      </div>
+      <p class="aviso-suave" id="nivel-requisitos" hidden></p>
+    </div>
+    <label class="campo ancho">PG máximos que ganas <input id="nivel-pg" type="number" inputmode="numeric" min="0"></label>
+    <p class="ayuda" id="nivel-pg-ayuda"></p>
+    <div class="botonera dos">
+      <button value="cancelar" formnovalidate>Cancelar</button>
+      <button value="ok" class="primario">Subir</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- ============ VER CARTA ============ -->
+<dialog id="dlg-carta">
+  <form method="dialog">
+    <h2 id="carta-titulo"></h2>
+    <div id="carta-cuerpo" class="carta"></div>
+    <button class="ancho" value="cerrar">Cerrar</button>
+  </form>
+</dialog>
+
+<!-- ============ DAR PX (DM) ============ -->
+<dialog id="dlg-px">
+  <form method="dialog">
+    <h2>Dar PX</h2>
+    <label class="campo ancho">Puntos de experiencia <input id="px-cantidad" type="number" inputmode="numeric" min="1" placeholder="0"></label>
+    <div class="opciones">
+      <label class="opcion"><input type="radio" name="px-modo" value="cada" checked> A cada personaje elegido</label>
+      <label class="opcion"><input type="radio" name="px-modo" value="repartir"> Repartir entre los elegidos</label>
+    </div>
+    <div class="etq">Personajes</div>
+    <div id="px-para" class="casillas columna"></div>
+    <label class="campo ancho">Motivo (opcional) <input id="px-motivo" maxlength="100" autocomplete="off" placeholder="Ogros del puente"></label>
+    <p class="ayuda" id="px-resumen"></p>
+    <div class="botonera dos">
+      <button value="cancelar" formnovalidate>Cancelar</button>
+      <button value="ok" class="primario">Dar PX</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="aviso" role="status" hidden></div>
+
+<script src="reglas.js"></script>
+<script src="nube.js"></script>
+<script src="app.js"></script>
+<script src="cartas.js"></script>
+</body>
+</html>
