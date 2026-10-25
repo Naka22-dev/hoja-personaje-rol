@@ -311,8 +311,9 @@ button.icono.quitar { font-size: 1.4rem; color: var(--tenue); padding: 6px; alig
 .px-barra span.lleno { background: #d4a017; }
 button.dorado { background: #d4a017; border-color: #d4a017; color: #2a1d00; font-weight: 700; margin-bottom: 10px; }
 .fila-px { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: end; }
-.sumar-px { display: flex; gap: 6px; }
-.sumar-px input { width: 80px; text-align: center; }
+.sumar-px { display: flex; gap: 6px; align-items: end; }
+.sumar-px .campo { width: 80px; }
+.sumar-px input { text-align: center; }
 .sumar-px button { flex: none; padding: 7px 10px; }
 
 /* ===== Dotes ===== */
