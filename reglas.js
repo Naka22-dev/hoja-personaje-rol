@@ -118,5 +118,7 @@ const espaciosPacto = nivel => ({
   cantidad: nivel >= 17 ? 4 : nivel >= 11 ? 3 : nivel >= 2 ? 2 : 1,
   nivel: Math.min(5, Math.ceil(nivel / 2)),
 });
+// Arcanum místico del brujo: [nivel de brujo, nivel de conjuro] (un conjuro de ese nivel, sin espacio de pacto).
+const ARCANUM = [[11, 6], [13, 7], [15, 8], [17, 9]];
 
 const DADOS_GOLPE = ['d6', 'd8', 'd10', 'd12'];

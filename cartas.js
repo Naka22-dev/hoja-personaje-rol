@@ -134,10 +134,11 @@ function leerOrigenes(texto) {
 const filaClase = (p, nombre) => p.clases.find(c => comparable(c.nombre) === comparable(nombre));
 
 // Nivel de conjuro más alto que puede lanzar una clase (como si fuera la única: así se preparan en multiclase).
+// El brujo llega más alto que su pacto con el Arcanum místico.
 function nivelMaxConjuro(fila) {
   const solo = { clases: [fila] };
   const pacto = pactoCalculado(solo);
-  if (pacto) return pacto.nivel;
+  if (pacto) return Math.max(pacto.nivel, ...ARCANUM.filter(([nv]) => nivelValido(fila.nivel) >= nv).map(([, c]) => c));
   const espacios = espaciosCalculados(solo);
   for (let i = 8; i >= 0; i--) if (espacios[i]) return i + 1;
   return 0;
@@ -177,6 +178,8 @@ function cumpleOrigen(p, carta, o) {
     case 'subclase': {
       const f = filaClase(p, a);
       if (!f || !subclaseDesbloqueada(f) || comparable(f.subclase) !== comparable(b) || nivelValido(f.nivel) < o.nivel) return null;
+      // Caballero arcano, Embaucador arcano…: su lista de conjuros, hasta el nivel que pueden lanzar
+      if (conjuro && modo === 'lista' && num(carta.d.nivel) > nivelMaxConjuro(f)) return null;
       motivo = f.subclase;
       break;
     }

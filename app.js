@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = '2.0.4';
+const VERSION = '2.0.5';
 const CLAVE = 'hojasDnD.v1';
 const CLAVE_DM = 'hojasDnD.partidasDM';
 
