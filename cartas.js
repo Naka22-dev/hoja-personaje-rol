@@ -231,8 +231,11 @@ const nombreTabla = carta => {
   return m ? m[1] : null;
 };
 
+// opciones = cartas para elegir que no son conjuros (invocaciones del brujo…), por su «tipo»;
+// las que el jugador ha elegido salen también en los rasgos.
 function clasificarCartas(p) {
-  const r = { rasgos: [], conjuros: [], elegir: [], criaturas: [], sinOrigen: [], noTocan: [] };
+  const r = { rasgos: [], conjuros: [], elegir: [], opciones: {}, criaturas: [], sinOrigen: [], noTocan: [] };
+  const elegidas = new Set(p.elegidas.map(comparable));
   for (const carta of cartasDe(p.id)) {
     if (nombreTabla(carta)) continue;
     if (!carta.d.origenes) { r.sinOrigen.push({ carta }); continue; }
@@ -241,10 +244,22 @@ function clasificarCartas(p) {
     const item = { carta, ...e };
     if (carta.t === 'criatura') r.criaturas.push(item);
     else if (carta.t === 'conjuro') (e.modo === 'lista' ? r.elegir : r.conjuros).push(item);
-    else if (e.modo === 'lista') r.elegir.push(item);
-    else r.rasgos.push(item);
+    else if (e.modo === 'lista') {
+      const tipo = carta.d.tipo || 'Rasgos';
+      (r.opciones[tipo] = r.opciones[tipo] || []).push(item);
+      if (elegidas.has(comparable(carta.d.nombre))) r.rasgos.push({ ...item, motivos: ['Elegida', ...item.motivos] });
+    } else r.rasgos.push(item);
   }
   return r;
+}
+
+function elegirCarta(nombre) {
+  const p = actual;
+  const i = p.elegidas.findIndex(n => comparable(n) === comparable(nombre));
+  if (i >= 0) p.elegidas.splice(i, 1);
+  else p.elegidas.push(nombre);
+  guardar();
+  pintarCartas();
 }
 
 // ===== Conjuros de las cartas en Magia =====
@@ -301,7 +316,7 @@ function prepararConjuro(nombre) {
     p.conjuros.splice(i, 1);
     aviso(`«${nombre}» quitado de Magia`);
   } else {
-    const carta = cartasDe(p.id).find(c => comparable(c.d.nombre) === comparable(nombre));
+    const carta = cartasDe(p.id).find(c => c.t === 'conjuro' && comparable(c.d.nombre) === comparable(nombre));
     if (!carta) return;
     p.conjuros.push(conjuroDeCarta(carta, false));
     p.conjuros.sort((a, b) => num(a.nivel) - num(b.nivel) || a.nombre.localeCompare(b.nombre, 'es'));
@@ -323,8 +338,9 @@ function filaCarta(item, extra) {
   const sub = carta.t === 'conjuro' ? (num(d.nivel) ? `Nivel ${num(d.nivel)}` : 'Truco') + (d.escuela ? ' · ' + d.escuela : '')
     : carta.t === 'criatura' ? [d.tipo_tamano_alineamiento || d.rol_especie_actitud, d.vd && 'VD ' + d.vd].filter(Boolean).join(' · ')
       : d.tipo || d.requisito || '';
+  // Por posición en el mazo: dos clases pueden tener una carta con el mismo nombre («Don épico»).
   return h('div', { class: 'fila-carta' },
-    h('button', { class: 'abrir-carta', 'data-accion': 'verCarta', 'data-nombre': d.nombre, style: colorCarta(carta) },
+    h('button', { class: 'abrir-carta', 'data-accion': 'verCarta', 'data-i': cartasDe(actual.id).indexOf(carta), style: colorCarta(carta) },
       h('span', { class: 'n' }, d.nombre),
       h('span', { class: 's' }, [sub, item.motivos && item.motivos.join(', ')].filter(Boolean).join(' · '))),
     extra);
@@ -369,9 +385,18 @@ function pintarCartas() {
     return h('button', { class: 'preparar' + (ya ? ' on' : ''), 'data-accion': 'prepararConjuro', 'data-nombre': i.carta.d.nombre,
       'aria-pressed': ya }, ya ? '✓ Preparado' : 'Preparar');
   };
-  const total = r.rasgos.length + r.conjuros.length + r.elegir.length + r.criaturas.length;
+  const elegidas = new Set(actual.elegidas.map(comparable));
+  const botonElegir = i => {
+    const ya = elegidas.has(comparable(i.carta.d.nombre));
+    return h('button', { class: 'preparar' + (ya ? ' on' : ''), 'data-accion': 'elegirCarta', 'data-nombre': i.carta.d.nombre,
+      'aria-pressed': ya }, ya ? '✓ Elegida' : 'Elegir');
+  };
+  const opciones = Object.entries(r.opciones);
+  const total = r.rasgos.length + r.conjuros.length + r.elegir.length + r.criaturas.length + opciones.length;
   cont.replaceChildren(...[
     bloqueCartas('Rasgos y atributos', r.rasgos),
+    ...opciones.map(([tipo, items]) => bloqueCartas(`Para elegir: ${tipo}`, items,
+      'Las que puedes tener según tu nivel. Cuántas te tocan lo dice la carta de la clase. «Elegir» la pasa a tus rasgos.', botonElegir)),
     bloqueCartas('Conjuros que te tocan siempre', r.conjuros, 'Ya están en Magia, en «Trucos y conjuros preparados».'),
     r.elegir.length && h('div', { class: 'caja' },
       h('h2', {}, `Para elegir (${r.elegir.length})`),
@@ -473,9 +498,9 @@ function contenidoCarta(carta) {
   return partes.join('');
 }
 
-function verCarta(nombre) {
+function verCarta(i) {
   const cartas = cartasDe(actual.id);
-  const carta = cartas.find(c => comparable(c.d.nombre) === comparable(nombre) && !nombreTabla(c));
+  const carta = cartas[i];
   if (!carta) return aviso('Esta carta no está en tu mazo');
   const tablas = cartas.filter(c => comparable(nombreTabla(c)) === comparable(carta.d.nombre));
   const cuerpo = $('#carta-cuerpo');
@@ -490,11 +515,12 @@ function verCarta(nombre) {
 Object.assign(acciones, {
   importarMazo: () => $('#archivo-mazo').click(),
   quitarMazo,
-  verCarta: b => verCarta(b.dataset.nombre),
+  verCarta: b => verCarta(Number(b.dataset.i)),
   prepararConjuro: b => prepararConjuro(b.dataset.nombre),
+  elegirCarta: b => elegirCarta(b.dataset.nombre),
   verTodoMazo: () => { verTodoMazo = !verTodoMazo; pintarCartas(); },
 });
-for (const a of ['importarMazo', 'quitarMazo', 'verCarta', 'prepararConjuro', 'verTodoMazo']) SIN_CAMBIOS.add(a);
+for (const a of ['importarMazo', 'quitarMazo', 'verCarta', 'prepararConjuro', 'elegirCarta', 'verTodoMazo']) SIN_CAMBIOS.add(a);
 
 $('#archivo-mazo').addEventListener('change', ev => {
   const archivo = ev.target.files[0];

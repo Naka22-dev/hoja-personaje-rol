@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = '2.0.1';
+const VERSION = '2.0.2';
 const CLAVE = 'hojasDnD.v1';
 const CLAVE_DM = 'hojasDnD.partidasDM';
 
@@ -184,6 +184,7 @@ function nuevoPersonaje() {
       pacto: { gastados: 0 },
     },
     conjuros: [],
+    elegidas: [],  // cartas del mazo elegidas de una lista que no son conjuros (invocaciones del brujo…), por nombre
     imagen: null, altura: '', peso: '', edad: '', aspecto: '', historia: '', alineamiento: '', idiomas: '', equipo: '',
     sintonia: Array.from({ length: 3 }, () => ({ activo: false, nombre: '' })),
     monedas: { pc: '', pp: '', pe: '', po: '', ppt: '' },
@@ -225,6 +226,7 @@ function normalizar(datos) {
   p.conjuros = p.conjuros.filter(c => c && typeof c === 'object').map(c => fusionar(nuevoConjuro(), c));
   p.dotesExtra = p.dotesExtra.filter(d => typeof d === 'string');
   p.pxRecibidos = p.pxRecibidos.filter(d => typeof d === 'string');
+  p.elegidas = p.elegidas.filter(d => typeof d === 'string').slice(0, 200);
   for (const [k, v] of Object.entries(p.dotesNivel)) if (typeof v !== 'string') delete p.dotesNivel[k];
   p.imagen = imagenValida(datos && datos.imagen);
   if (!p.id) p.id = crearId();
