@@ -46,7 +46,7 @@ const ESPECIES = [
   { nombre: 'Dracónido', tamano: ['Mediano'], velocidad: '9 m', linaje: 'Linaje dracónico',
     linajes: ['Azul', 'Blanco', 'Bronce', 'Cobre', 'Negro', 'Oro', 'Oropel', 'Plata', 'Rojo', 'Verde'] },
   { nombre: 'Elfo', tamano: ['Mediano'], velocidad: '9 m', linaje: 'Linaje élfico',
-    linajes: ['Alto elfo', 'Drow', 'Elfo de los bosques'] },
+    linajes: ['Alto elfo', 'Drow', 'Elfo de los bosques'], velocidadLinaje: { 'Elfo de los bosques': '10,5 m' } },
   { nombre: 'Enano', tamano: ['Mediano'], velocidad: '9 m', linajes: [] },
   { nombre: 'Gnomo', tamano: ['Pequeño'], velocidad: '9 m', linaje: 'Linaje gnomo',
     linajes: ['Gnomo de las rocas', 'Gnomo de los bosques'] },

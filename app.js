@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = '2.0.5';
+const VERSION = '2.0.6';
 const CLAVE = 'hojasDnD.v1';
 const CLAVE_DM = 'hojasDnD.partidasDM';
 
@@ -733,6 +733,11 @@ function pintarFicha() {
   ].filter(Boolean));
 }
 
+// Algunos linajes cambian la velocidad de la especie (elfo de los bosques: 10,5 m).
+function velocidadEspecie(e, linaje) {
+  return (e.velocidadLinaje && e.velocidadLinaje[linaje]) || e.velocidad;
+}
+
 // Al elegir algo en un desplegable, ajusta lo que depende de ello.
 function alElegir(ruta, anterior) {
   const p = actual;
@@ -747,8 +752,12 @@ function alElegir(ruta, anterior) {
     if (comparable(anterior) !== comparable(p.especie)) p.linaje = '';
     if (e) {
       if (!e.tamano.includes(p.tamano)) p.tamano = e.tamano[0];
-      p.velocidad = e.velocidad;
+      p.velocidad = velocidadEspecie(e, p.linaje);
     }
+  } else if (ruta === 'linaje') {
+    // Cambia la velocidad solo si el jugador no la había retocado a mano.
+    const e = datosEspecie(p.especie);
+    if (e && p.velocidad === velocidadEspecie(e, anterior)) p.velocidad = velocidadEspecie(e, p.linaje);
   } else if (ruta === 'trasfondo') {
     // La dote de origen sigue al trasfondo, salvo que el jugador haya elegido otra.
     const viejo = datosTrasfondo(anterior);
