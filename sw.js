@@ -1,7 +1,7 @@
 // Guarda la app en el móvil para que funcione sin conexión.
 // Sirve siempre la copia guardada y, en segundo plano, descarga la versión nueva
 // (las actualizaciones se ven la siguiente vez que se abre la app).
-const CACHE = 'hoja-pj-v8';
+const CACHE = 'hoja-pj-v10';
 const ARCHIVOS = [
   './',
   'index.html',

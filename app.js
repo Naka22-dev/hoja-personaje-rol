@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = '2.0.2';
+const VERSION = '2.0.4';
 const CLAVE = 'hojasDnD.v1';
 const CLAVE_DM = 'hojasDnD.partidasDM';
 
@@ -128,6 +128,13 @@ function huecosDote(p) {
   return huecos;
 }
 
+// Dotes que tiene ahora (las de huecos que ya no le tocan, p. ej. tras bajar de nivel, no cuentan).
+function dotesActivas(p) {
+  const visibles = new Set(huecosDote(p).map(hd => hd.clave));
+  return [...Object.entries(p.dotesNivel).filter(([k]) => visibles.has(k)).map(([, v]) => v), ...p.dotesExtra].filter(Boolean);
+}
+const tieneDote = (p, nombre) => dotesActivas(p).some(d => comparable(d) === comparable(nombre));
+
 // Multiclase: 13 o más en la característica principal de todas las clases, la nueva incluida.
 function requisitosMulticlase(p, nueva) {
   const faltan = [];
@@ -146,6 +153,28 @@ const pxNum = p => {
   const t = String(p.px ?? '').replace(/\D/g, '');
   return t === '' ? null : Number(t);
 };
+const pxMinimo = p => PX_NIVEL[nivelTotal(p) - 1];
+// PX de los que se parte al sumar: nunca menos de lo que pide el nivel (p. ej. una partida que empieza en nivel 10).
+const pxBase = p => Math.max(pxNum(p) || 0, pxMinimo(p));
+
+// Los PX siguen al nivel que decide el DM: nunca por debajo del mínimo del nivel, y si el personaje baja
+// de nivel (otra partida que empieza más abajo) con PX de sobra para el siguiente, empieza el nivel de cero.
+// Sin PX apuntados (subida por hitos) no se toca nada. Se llama al terminar de cambiar algo, no con cada tecla:
+// si no, borrar el «8» para escribir «12» bajaría el nivel a 1 por el camino. Devuelve true si cambia los PX.
+const nivelDePX = new WeakMap();  // personaje → nivel con el que se ajustaron sus PX por última vez
+function ajustarPX(p) {
+  const nivel = nivelTotal(p);
+  const nivelAntes = nivelDePX.has(p) ? nivelDePX.get(p) : nivel;
+  nivelDePX.set(p, nivel);
+  const px = pxNum(p);
+  if (px === null) return false;
+  let nuevo = px;
+  if (nivel < nivelAntes && nivel < 20 && px >= PX_NIVEL[nivel]) nuevo = pxMinimo(p);
+  else if (px < pxMinimo(p)) nuevo = pxMinimo(p);
+  if (nuevo === px) return false;
+  p.px = nuevo;
+  return true;
+}
 
 // ===== Modelo de datos =====
 function crearId() {
@@ -231,6 +260,7 @@ function normalizar(datos) {
   p.imagen = imagenValida(datos && datos.imagen);
   if (!p.id) p.id = crearId();
   sincronizar(p);
+  ajustarPX(p);
   return p;
 }
 
@@ -754,6 +784,9 @@ function pintarDados() {
 // Barra de experiencia: se rellena desde los PX del nivel actual hasta los del siguiente.
 function pintarPX() {
   const p = actual;
+  // ajustarPX puede haber cambiado los PX (al cambiar de nivel): se ve en la casilla salvo mientras se escribe en ella.
+  const campo = $('[data-campo="px"]');
+  if (campo && document.activeElement !== campo && campo.value !== String(p.px)) campo.value = p.px;
   const px = pxNum(p);
   const nivel = nivelTotal(p);
   const barra = $('#px-barra');
@@ -1405,7 +1438,7 @@ function recibirPremios(codigo, premios) {
     for (const pr of premios) {
       if (!Array.isArray(pr.para) || !pr.para.includes(p.id) || p.pxRecibidos.includes(pr.id)) continue;
       const px = Math.max(0, Math.floor(num(pr.px)));
-      p.px = (pxNum(p) || 0) + px;
+      p.px = pxBase(p) + px;
       p.pxRecibidos = [...p.pxRecibidos, pr.id].slice(-MAX_RECIBIDOS);
       p.modificado = Date.now();
       mensajes.push(`${p.nombre || 'Sin nombre'}: +${miles(px)} PX` + (pr.motivo ? ` (${pr.motivo})` : ''));
@@ -1546,13 +1579,15 @@ function actualizarSubirNivel() {
   const caras = Number(dado.slice(1));
   const media = caras / 2 + 1;
   const con = modificador(p.punt.con);
+  const duro = tieneDote(p, 'Duro') ? 2 : 0;  // la dote Duro da 2 PG más por nivel
   const campoPG = $('#nivel-pg');
   if (campoPG.dataset.dado !== dado) {  // no pisa lo que haya escrito el jugador si el dado no cambia
-    campoPG.value = Math.max(1, media + con);
+    campoPG.value = Math.max(1, media + con) + duro;
     campoPG.dataset.dado = dado;
   }
-  $('#nivel-pg-ayuda').textContent = `La media del ${dado} es ${media}, más tu Constitución (${conSigno(con)}). ` +
-    `Si prefieres tirar el dado, escribe tu resultado ${conSigno(con)}.`;
+  const extra = conSigno(con) + (duro ? ' +2' : '');
+  $('#nivel-pg-ayuda').textContent = `La media del ${dado} es ${media}, más tu Constitución (${conSigno(con)})` +
+    (duro ? ' y +2 de la dote Duro' : '') + `. Si prefieres tirar el dado, escribe tu resultado ${extra}.`;
 }
 
 function terminarSubirNivel(ev) {
@@ -1578,6 +1613,7 @@ function terminarSubirNivel(ev) {
     if (p.pg.act !== '') p.pg.act = num(p.pg.act) + pg;
   }
   sincronizar(p);
+  ajustarPX(p);
   const novedades = [];
   if (nivelValido(c.nivel) === NIVEL_SUBCLASE && !c.subclase) novedades.push(`ya puedes elegir la subclase de ${c.nombre}`);
   if (huecosDote(p).length > antes) novedades.push('tienes una dote nueva en Rasgos');
@@ -1619,7 +1655,7 @@ const acciones = {
       return;
     }
     campo.value = '';
-    actual.px = (pxNum(actual) || 0) + n;
+    actual.px = pxBase(actual) + n;
     $('[data-campo="px"]').value = actual.px;
     aviso(`+${n} PX`);
   },
@@ -1627,6 +1663,7 @@ const acciones = {
     const c = actual.clases[b.dataset.i];
     if (!confirm(`¿Quitar la clase «${c.nombre.trim() || 'sin nombre'} ${nivelValido(c.nivel)}»?`)) return;
     actual.clases.splice(b.dataset.i, 1);
+    ajustarPX(actual);
     sincronizarCartas();
     pintarFicha();
     pintarDotes();
@@ -1769,6 +1806,12 @@ $('#hoja').addEventListener('input', ev => {
 // (el nivel de una clase desbloquea la subclase y los huecos de dote).
 $('#hoja').addEventListener('change', ev => {
   const t = ev.target;
+  // Al terminar de cambiar el nivel de una clase o los PX, los PX se ajustan al nivel.
+  if (ajustarPX(actual)) {
+    $('[data-campo="px"]').value = actual.px;  // también si se estaba escribiendo en ella
+    guardar();
+    pintarPX();
+  }
   if (t.dataset.cat) {
     const ruta = t.dataset.cat;
     const anterior = leer(actual, ruta);

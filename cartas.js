@@ -155,11 +155,6 @@ const valorVD = t => {
   return m ? Number(m[1]) / Number(m[2]) : s === '' ? 0 : Number.parseFloat(s) || 0;
 };
 
-const dotesDe = p => {
-  const visibles = new Set(huecosDote(p).map(hd => hd.clave));
-  return [...Object.entries(p.dotesNivel).filter(([k]) => visibles.has(k)).map(([, v]) => v), ...p.dotesExtra].filter(Boolean);
-};
-
 // Comprueba una entrada de origen. Devuelve { modo, motivo } si se cumple, o null.
 function cumpleOrigen(p, carta, o) {
   const nivel = nivelTotal(p);
@@ -198,7 +193,7 @@ function cumpleOrigen(p, carta, o) {
       motivo = p.trasfondo;
       break;
     case 'dote':
-      if (!dotesDe(p).some(d => comparable(d) === comparable(o.nombre)) || nivel < o.nivel) return null;
+      if (!tieneDote(p, o.nombre) || nivel < o.nivel) return null;
       motivo = o.nombre;
       break;
     case 'conjuro':
@@ -351,11 +346,27 @@ function colorCarta(carta) {
   return /^#?[0-9a-f]{6}$/i.test(c) ? `--color-carta: ${c[0] === '#' ? c : '#' + c}` : null;
 }
 
-function bloqueCartas(titulo, items, ayuda, extra) {
+// Bloques plegables: se recuerda cuáles ha abierto o cerrado el jugador mientras la app sigue abierta.
+const bloquesAbiertos = new Map();  // clave → abierto
+const GRUPO_ABIERTO = 5;  // los grupos pequeños salen abiertos; los grandes, cerrados
+function plegable(clave, porDefecto, clase, resumen, ...contenido) {
+  return h('details', {
+    class: clase, open: bloquesAbiertos.has(clave) ? bloquesAbiertos.get(clave) : porDefecto,
+    ontoggle: ev => bloquesAbiertos.set(clave, ev.target.open),
+  }, h('summary', {}, ...[resumen].flat()), ...contenido);
+}
+
+function bloqueCartas(titulo, items, ayuda, extra, porDefecto = true) {
   if (!items.length) return null;
-  return h('div', { class: 'caja' },
-    h('h2', {}, `${titulo} (${items.length})`),
+  return plegable(titulo, porDefecto, 'caja bloque-cartas', h('h2', {}, `${titulo} (${items.length})`),
     ayuda && h('p', { class: 'ayuda' }, ayuda),
+    items.map(i => filaCarta(i, extra && extra(i))));
+}
+
+// Subgrupo dentro de un bloque: conjuros de un nivel, criaturas de un conjuro…
+function grupoCartas(clave, titulo, items, extra, marcados = 0) {
+  return plegable(clave, items.length <= GRUPO_ABIERTO, 'grupo-cartas',
+    [h('span', {}, titulo), h('span', { class: 'cuenta' }, marcados ? `${items.length} · ✓ ${marcados}` : String(items.length))],
     items.map(i => filaCarta(i, extra && extra(i))));
 }
 
@@ -363,7 +374,14 @@ function pintarCartas() {
   const cont = $('#cartas-contenido');
   if (!cont || !actual) return;
   if (modoLectura) {
-    cont.replaceChildren(h('p', { class: 'vacio' }, 'Las cartas están solo en el móvil del jugador.'));
+    // El DM no tiene el mazo, pero sí ve qué ha elegido el jugador (solo los nombres, que van en la hoja).
+    cont.replaceChildren(...[
+      actual.elegidas.length > 0 && h('div', { class: 'caja' },
+        h('h2', {}, `Elegidas del mazo (${actual.elegidas.length})`),
+        h('p', { class: 'ayuda' }, 'Invocaciones y otras opciones que el jugador ha marcado con «Elegir».'),
+        h('ul', { class: 'lista-elegidas' }, [...actual.elegidas].sort((a, b) => a.localeCompare(b, 'es')).map(n => h('li', {}, n)))),
+      h('p', { class: 'vacio' }, 'El texto de las cartas está solo en el móvil del jugador. Los conjuros que ha preparado están en Magia.'),
+    ].filter(Boolean));
     return;
   }
   const m = mazoDe(actual.id);
@@ -392,19 +410,25 @@ function pintarCartas() {
       'aria-pressed': ya }, ya ? '✓ Elegida' : 'Elegir');
   };
   const opciones = Object.entries(r.opciones);
+  // Criaturas agrupadas por lo que las da (Polimorfar, Encontrar familiar, Forma salvaje…), de menor a mayor VD.
+  const porOrigen = {};
+  for (const i of r.criaturas) (porOrigen[i.motivos.join(', ')] = porOrigen[i.motivos.join(', ')] || []).push(i);
+  for (const lista of Object.values(porOrigen)) {
+    lista.sort((a, b) => valorVD(a.carta.d.vd) - valorVD(b.carta.d.vd) || a.carta.d.nombre.localeCompare(b.carta.d.nombre, 'es'));
+  }
   const total = r.rasgos.length + r.conjuros.length + r.elegir.length + r.criaturas.length + opciones.length;
   cont.replaceChildren(...[
     bloqueCartas('Rasgos y atributos', r.rasgos),
     ...opciones.map(([tipo, items]) => bloqueCartas(`Para elegir: ${tipo}`, items,
-      'Las que puedes tener según tu nivel. Cuántas te tocan lo dice la carta de la clase. «Elegir» la pasa a tus rasgos.', botonElegir)),
+      'Las que puedes tener según tu nivel. Cuántas te tocan lo dice la carta de la clase. «Elegir» la pasa a tus rasgos.', botonElegir,
+      items.length <= GRUPO_ABIERTO)),
     bloqueCartas('Conjuros que te tocan siempre', r.conjuros, 'Ya están en Magia, en «Trucos y conjuros preparados».'),
-    r.elegir.length && h('div', { class: 'caja' },
-      h('h2', {}, `Para elegir (${r.elegir.length})`),
+    r.elegir.length && plegable('elegir', true, 'caja bloque-cartas', h('h2', {}, `Para elegir (${r.elegir.length})`),
       h('p', { class: 'ayuda' }, 'Conjuros de tus listas hasta el nivel que puedes lanzar. «Preparar» los añade a Magia.'),
-      Object.keys(porNivel).sort((a, b) => a - b).map(n => [
-        h('div', { class: 'etq nivel-carta' }, SUBTITULO_NIVEL(n)),
-        porNivel[n].map(i => filaCarta(i, botonPreparar(i)))])),
-    bloqueCartas('Formas y criaturas', r.criaturas),
+      Object.keys(porNivel).sort((a, b) => a - b).map(n => grupoCartas('elegir' + n, SUBTITULO_NIVEL(n), porNivel[n], botonPreparar,
+        porNivel[n].filter(i => preparados.has(comparable(i.carta.d.nombre))).length))),
+    r.criaturas.length && plegable('criaturas', true, 'caja bloque-cartas', h('h2', {}, `Formas y criaturas (${r.criaturas.length})`),
+      Object.entries(porOrigen).map(([origen, items]) => grupoCartas('criaturas:' + origen, origen, items))),
     r.sinOrigen.length && bloqueCartas('Cartas sin orígenes', r.sinOrigen.map(i => ({ carta: i.carta })),
       'Estas cartas no dicen a quién pertenecen: se muestran todas.'),
     !total && !r.sinOrigen.length && h('p', { class: 'vacio' }, 'Ninguna carta del mazo te toca todavía. Revisa la clase, la especie y el resto de la Ficha.'),

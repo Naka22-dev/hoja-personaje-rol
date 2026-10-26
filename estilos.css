@@ -348,7 +348,24 @@ button.dorado { background: #d4a017; border-color: #d4a017; color: #2a1d00; font
 button.preparar { flex: none; width: 104px; font-size: .85rem; padding: 6px; }
 button.preparar.on { background: var(--acento-claro); border-color: var(--acento); color: var(--acento); font-weight: 600; }
 .nivel-carta { margin: 10px 0 4px; font-weight: 700; }
+.bloque-cartas > summary, .grupo-cartas > summary { list-style: none; cursor: pointer; }
+.bloque-cartas > summary::-webkit-details-marker, .grupo-cartas > summary::-webkit-details-marker { display: none; }
+.bloque-cartas > summary h2::after { content: ' ▾'; }
+.bloque-cartas:not([open]) > summary h2 { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+.bloque-cartas:not([open]) > summary h2::after { content: ' ▸'; }
+.grupo-cartas { margin-bottom: 6px; }
+.grupo-cartas > summary {
+  display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 10px;
+  border: 1px solid var(--linea); border-radius: 8px; font-weight: 700;
+}
+.grupo-cartas > summary::before { content: '▸'; color: var(--tenue); }
+.grupo-cartas[open] > summary { margin-bottom: 6px; border-color: var(--borde); }
+.grupo-cartas[open] > summary::before { content: '▾'; }
+.grupo-cartas > summary > span:first-child { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.grupo-cartas .cuenta { font-size: .8rem; font-weight: 400; color: var(--tenue); white-space: nowrap; }
 .mazo-info .botonera { margin-bottom: 0; }
+.lista-elegidas { margin: 0; padding-left: 1.2em; }
+.lista-elegidas li { padding: 2px 0; }
 .lista .cuerpo .ver-carta { grid-column: 1 / -1; justify-self: start; padding: 6px 12px; font-size: .85rem; }
 .lista .cuerpo .auto { grid-column: 1 / -1; margin: 0; font-size: .8rem; }
 
